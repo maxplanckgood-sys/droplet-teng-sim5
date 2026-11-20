@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTFE Droplet-TENG 최적 경사각 및 상충관계 시뮬레이터</title>
+  <style>
+    :root {
+      --bg-base: #090e1a;
+      --bg-surface: #11192e;
+      --bg-elevated: #17223d;
+      --bg-input: #0b1222;
+      --border: #25355e;
+      --border-soft: rgba(148, 163, 184, 0.18);
+      --text-primary: #f1f5f9;
+      --text-secondary: #9fb0d4;
+      --text-muted: #6b7ea8;
+      --sky: #38bdf8;
+      --cyan: #22d3ee;
+      --indigo: #818cf8;
+      --emerald: #34d399;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Top Header */
+    .topbar {
+      background: rgba(17, 25, 46, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 22px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .topbar-inner {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title-block h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.015em;
+    }
+
+    .title-block p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      appearance: none;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 8px 13px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      border-color: var(--sky);
+      background: #1e2d52;
+    }
+
+    .btn.active {
+      background: linear-gradient(135deg, #0284c7, #4f46e5);
+      border-color: transparent;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn-drop {
+      background: linear-gradient(135deg, #059669, #0d9488);
+      border-color: transparent;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .btn-drop:hover {
+      filter: brightness(1.08);
+    }
+
+    .btn-continuous.active-stream {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      border-color: rgba(125, 211, 252, 0.7);
+      color: #ffffff;
+      box-shadow: 0 0 14px rgba(34, 211, 238, 0.35);
+    }
+
+    /* Main Grid */
+    .main-grid {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 18px 22px 28px;
+      display: grid;
+      grid-template-columns: 395px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    @media (max-width: 1020px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+        padding: 14px;
+      }
+    }
+
+    .col-left, .col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 26px -12px rgba(0, 0, 0, 0.65);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--sky);
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .badge-peak {
+      background: rgba(251, 113, 133, 0.16);
+      color: #fda4af;
+      border-color: rgba(251, 113, 133, 0.42);
+    }
+
+    .badge-opt {
+      background: rgba(52, 211, 153, 0.16);
+      color: #6ee7b7;
+      border-color: rgba(52, 211, 153, 0.42);
+    }
+
+    .badge-warn {
+      background: rgba(251, 191, 36, 0.16);
+      color: #fde68a;
+      border-color: rgba(251, 191, 36, 0.42);
+    }
+
+    /* Equation Display */
+    .eq-panel {
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      padding: 11px 12px;
+      margin-bottom: 10px;
+      overflow-x: auto;
+    }
+
+    .eq-panel:last-child {
+      margin-bottom: 0;
+    }
+
+    .eq-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .eq-symbolic {
+      font-size: 0.77rem;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+
+    .eq-numeric {
+      font-size: 0.76rem;
+      color: #bae6fd;
+      line-height: 1.65;
+      white-space: nowrap;
+    }
+
+    /* Sliders */
+    .slider-item {
+      margin-bottom: 12px;
+    }
+
+    .slider-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .slider-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+      gap: 8px;
+    }
+
+    .slider-row label {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .slider-val {
+      color: var(--sky);
+      font-weight: 700;
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 6px;
+      padding: 1px 7px;
+      font-size: 0.78rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: #1e2d52;
+      accent-color: var(--sky);
+      cursor: pointer;
+    }
+
+    .footnote {
+      margin-top: 10px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    /* KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 680px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .kpi-name {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .kpi-value {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+
+    .kpi-sub {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Canvas Wrappers */
+    .canvas-box {
+      position: relative;
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .chart-box {
+      height: 340px;
+      cursor: crosshair;
+    }
+
+    .osc-box {
+      height: 255px;
+      background: #050b16;
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    .schematic-box {
+      height: 235px;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .legend-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .line-sample {
+      width: 16px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--sky);
+    }
+
+    .dash-sample {
+      width: 16px;
+      height: 0;
+      border-top: 2px dashed #94a3b8;
+    }
+
+    .dotline-sample {
+      width: 16px;
+      height: 0;
+      border-top: 2px dotted var(--amber);
+    }
+
+    .dot-sample {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--rose);
+    }
+
+    /* Bottom Grid */
+    .lower-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .lower-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .summary-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: #dbeafe;
+    }
+
+    .summary-list li {
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 9px;
+      padding: 9px 11px;
+    }
+
+    .summary-list strong {
+      color: #ffffff;
+    }
+
+    .status-banner {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .osc-meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 7px 11px;
+    }
+
+    .osc-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #6ee7b7;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="title-block">
+        <h1>PTFE Droplet-TENG 최적 경사각 및 상충관계 시뮬레이터</h1>
+        <p>수막 감쇄(exp(-k/sinθ)) · 고각도 접촉·체류 상충관계(g<sub>c</sub>(θ; m, α)) · 파셴 한계(327 V · η<sub>meas</sub>) · 가상 오실로스코프</p>
+      </div>
+      <div class="toolbar-actions">
+        <button type="button" id="btn-PTFE" class="btn active" onclick="setPreset('PTFE')">PTFE (최적 ≈ 60°)</button>
+        <button type="button" id="btn-PI" class="btn" onclick="setPreset('PI')">PI (k=0.38)</button>
+        <button type="button" id="btn-PVC" class="btn" onclick="setPreset('PVC')">PVC (k=0.26)</button>
+        <button type="button" id="btn-single-drop" class="btn btn-drop" onclick="launchSingleDroplet()">💧 물방울 단일 낙하</button>
+        <button type="button" id="btn-continuous-drop" class="btn btn-continuous" onclick="toggleContinuousDroplets()">
+          🌊 물방울 연속 낙하: <span id="continuous-status-label">OFF</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-grid">
+    <!-- Left Column: Live Equation & Parameter Sliders -->
+    <section class="col-left">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">① 완성형 수식 및 실시간 수치 대입</h2>
+          <span id="regime-badge" class="badge badge-peak">최적각(60°) 부근</span>
+        </div>
+
+        <div class="eq-panel">
+          <div class="eq-label">기호 완성형 방정식</div>
+          <div class="eq-symbolic mono">
+            V<sub>peak</sub>(θ) = min[ V<sub>0</sub> · exp(-k / sin θ) · g<sub>c</sub>(θ; m, α), &nbsp;V<sub>Paschen</sub> · η<sub>meas</sub> ]
+          </div>
+          <div class="eq-label" style="margin-top:6px;">접촉·체류 트레이드오프 항 g<sub>c</sub>(θ; m, α)</div>
+          <div class="eq-symbolic mono" style="color:#c7d2fe;font-size:0.72rem;">
+            g<sub>c</sub>(θ; m, α) = cos<sup>m</sup>(θ) · exp(-α · ((θ - 60°) / 36°)<sup>2</sup>)
+          </div>
+        </div>
+
+        <div class="eq-panel">
+          <div class="eq-label">실시간 대입 계산 (V<sub>Paschen</sub> = 327 V)</div>
+          <div id="live-substitution" class="eq-numeric mono"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">② 물리·상충관계 파라미터 조절</h2>
+          <span id="preset-tag" class="mono" style="font-size:0.75rem;color:var(--emerald);">시료: PTFE</span>
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-theta">경사각 θ<sub>tilt</sub> (10° ~ 88°)</label>
+            <span id="out-theta" class="slider-val mono">60.0°</span>
+          </div>
+          <input id="sl-theta" type="range" min="10" max="88" step="0.5" value="60" />
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-k">수막 감쇄 상수 k</label>
+            <span id="out-k" class="slider-val mono">0.08</span>
+          </div>
+          <input id="sl-k" type="range" min="0.02" max="0.80" step="0.01" value="0.08" />
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-m">접촉 면적 감소 지수 m (cos<sup>m</sup>θ)</label>
+            <span id="out-m" class="slider-val mono">0.08</span>
+          </div>
+          <input id="sl-m" type="range" min="0.00" max="1.20" step="0.02" value="0.08" />
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-alpha">체류·이탈 상충 계수 α</label>
+            <span id="out-alpha" class="slider-val mono">0.46</span>
+          </div>
+          <input id="sl-alpha" type="range" min="0.00" max="1.20" step="0.01" value="0.46" />
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-v0">기준 전압 계수 V<sub>0</sub> (V)</label>
+            <span id="out-v0" class="slider-val mono">115 V</span>
+          </div>
+          <input id="sl-v0" type="range" min="70" max="260" step="2" value="115" />
+        </div>
+
+        <div class="slider-item">
+          <div class="slider-row">
+            <label for="sl-eta">계측 분전압 효율 η<sub>meas</sub></label>
+            <span id="out-eta" class="slider-val mono">0.35</span>
+          </div>
+          <input id="sl-eta" type="range" min="0.15" max="1.00" step="0.01" value="0.35" />
+        </div>
+
+        <p class="footnote">
+          * PTFE 기본 조건(k=0.08, m=0.08, α=0.46, V<sub>0</sub>=115 V, η<sub>meas</sub>=0.35)에서 저각도 수막 잔류 감쇄(exp(-k/sinθ))와 고각도 접촉 면적·체류 시간 감소(g<sub>c</sub>(θ; m, α))가 매끄럽게 균형을 이루어 최적 경사각 θ<sub>opt</sub>가 약 60.0°에 형성됩니다.
+        </p>
+      </div>
+    </section>
+
+    <!-- Right Column: KPIs, Curve Graph, Virtual Oscilloscope, Schematic & Conclusion -->
+    <section class="col-right">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-name">최적 경사각 (θ<sub>opt</sub>)</div>
+          <div id="kpi-opt-angle" class="kpi-value mono" style="color:var(--rose);">60.0°</div>
+          <div id="kpi-opt-volt" class="kpi-sub mono">최대 예측 피크: --.- V</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-name">현재 각도 피크 전압 (V<sub>peak</sub>)</div>
+          <div id="kpi-cur-volt" class="kpi-value mono" style="color:var(--sky);">--.- V</div>
+          <div id="kpi-paschen-cap" class="kpi-sub mono">파셴 관측 상한: --.- V</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-name">수막 유지 / 접촉 계수</div>
+          <div id="kpi-ratios" class="kpi-value mono" style="color:var(--emerald);">-- / --</div>
+          <div id="kpi-pulse-status" class="kpi-sub mono">단일/연속 낙하 대기 중</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">③ 경사각(θ<sub>tilt</sub>)에 따른 피크 전압 곡선 및 최적각 피크</h2>
+          <span class="mono" style="font-size:0.74rem;color:var(--text-muted);">클릭·드래그로 각도 탐색</span>
+        </div>
+
+        <div class="legend-strip">
+          <span class="legend-item"><span class="line-sample"></span>Trade-off 반영 V<sub>peak</sub>(θ)</span>
+          <span class="legend-item"><span class="dash-sample"></span>Trade-off 미반영 곡선</span>
+          <span class="legend-item"><span class="dotline-sample"></span>파셴 한계 (327 V · η<sub>meas</sub>)</span>
+          <span class="legend-item"><span class="dot-sample"></span>최적 경사각 θ<sub>opt</sub> (≈ 60°)</span>
+        </div>
+
+        <div id="chart-container" class="canvas-box chart-box">
+          <canvas id="curveCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Virtual Oscilloscope Panel -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">④ 가상 오실로스코프 (실시간 전압 펄스 파형)</h2>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="osc-mode-badge" class="badge badge-opt">CH1 · SINGLE/CONT</span>
+            <button type="button" class="btn" style="padding:5px 10px;font-size:0.74rem;" onclick="clearOscilloscope()">파형 초기화</button>
+          </div>
+        </div>
+
+        <div id="osc-container" class="canvas-box osc-box">
+          <canvas id="oscCanvas"></canvas>
+        </div>
+
+        <div class="osc-meta-bar mono">
+          <span class="osc-pill">● CH1: <span id="osc-live-v" style="margin-left:4px;">0.0 V</span></span>
+          <span>측정 피크: <strong id="osc-last-peak" style="color:var(--emerald);">0.0 V</strong></span>
+          <span>펄스 폭/간격: <strong id="osc-timing-info" style="color:var(--cyan);">-- ms</strong></span>
+          <span>파셴 기준선: <strong id="osc-cap-label" style="color:var(--amber);">114.5 V</strong></span>
+        </div>
+      </div>
+
+      <div class="lower-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">⑤ 경사각별 물방울 접촉·수막 거동 모식도</h2>
+            <span id="schematic-angle-label" class="mono" style="font-size:0.75rem;color:var(--amber);">60.0°</span>
+          </div>
+
+          <div id="schematic-container" class="canvas-box schematic-box">
+            <canvas id="schematicCanvas"></canvas>
+          </div>
+          <div id="droplet-telemetry" class="status-banner mono">
+            '물방울 단일 낙하' 또는 '물방울 연속 낙하' 버튼을 눌러 경사 PTFE 기판 위 물방울 거동과 오실로스코프 펄스를 확인하세요.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">⑥ PTFE 최적각(≈ 60°) 결론 요약</h2>
+          </div>
+          <ul class="summary-list">
+            <li>
+              <strong>작은 수막 감쇄 상수(k ≈ 0.08):</strong> PTFE는 강한 소수성과 음의 대전 특성으로 저각도에서 경사각이 증가할수록 잔여 수막 누설이 빠르게 줄어들며 전하 유지율이 높아집니다.
+            </li>
+            <li>
+              <strong>고각도 접촉·체류 상충관계:</strong> 경사각이 60°를 넘어가면 물방울의 유효 접촉 면적과 표면 체류 시간이 감소하여 고각도에서 출력이 완만히 줄어듭니다.
+            </li>
+            <li>
+              <strong>최적 경사각 θ<sub>opt</sub> ≈ 60°:</strong> 두 요인의 매끄러운 균형으로 PTFE 기준 약 60° 부근에서 최대 피크가 형성되며, 공기 파셴 절연 파괴 한계(327 V · η<sub>meas</sub>)가 상한선으로 작용합니다.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const V_PASCHEN = 327.0;
+      const PEAK_CENTER_DEG = 60.0;
+      const PEAK_WIDTH_DEG = 36.0;
+
+      const PRESETS = {
+        PTFE: { label: 'PTFE', theta: 60.0, v0: 115, k: 0.08, m: 0.08, alpha: 0.46, eta: 0.35 },
+        PI:   { label: 'PI',   theta: 60.0, v0: 105, k: 0.38, m: 0.08, alpha: 0.46, eta: 0.35 },
+        PVC:  { label: 'PVC',  theta: 60.0, v0: 110, k: 0.26, m: 0.08, alpha: 0.46, eta: 0.35 }
+      };
+
+      const state = {
+        material: 'PTFE',
+        theta: 60.0,
+        k: 0.08,
+        m: 0.08,
+        alpha: 0.46,
+        v0: 115,
+        eta: 0.35
+      };
+
+      // Droplet simulation state supporting both single and continuous falling/sliding droplets
+      const simDroplets = {
+        continuous: false,
+        spawnCooldown: 0,
+        list: [], // { progress: number, triggeredPulse: boolean, id: number }
+        flash: 0,
+        lastPeak: 0,
+        pulseCount: 0,
+        nextId: 1
+      };
+
+      // Virtual oscilloscope rolling trace buffer
+      const OSC_SAMPLES = 320;
+      const oscState = {
+        samples: new Float32Array(OSC_SAMPLES),
+        cursor: 0,
+        instantV: 0,
+        activePulses: [], // { startAge: number, duration: number, peakV: number, filmRetention: number, contactFactor: number }
+        lastPulseTimeMs: null,
+        lastIntervalMs: null
+      };
+
+      // DOM references
+      const slTheta = document.getElementById('sl-theta');
+      const slK = document.getElementById('sl-k');
+      const slM = document.getElementById('sl-m');
+      const slAlpha = document.getElementById('sl-alpha');
+      const slV0 = document.getElementById('sl-v0');
+      const slEta = document.getElementById('sl-eta');
+
+      const outTheta = document.getElementById('out-theta');
+      const outK = document.getElementById('out-k');
+      const outM = document.getElementById('out-m');
+      const outAlpha = document.getElementById('out-alpha');
+      const outV0 = document.getElementById('out-v0');
+      const outEta = document.getElementById('out-eta');
+
+      const liveSub = document.getElementById('live-substitution');
+      const regimeBadge = document.getElementById('regime-badge');
+      const presetTag = document.getElementById('preset-tag');
+
+      const kpiOptAngle = document.getElementById('kpi-opt-angle');
+      const kpiOptVolt = document.getElementById('kpi-opt-volt');
+      const kpiCurVolt = document.getElementById('kpi-cur-volt');
+      const kpiPaschenCap = document.getElementById('kpi-paschen-cap');
+      const kpiRatios = document.getElementById('kpi-ratios');
+      const kpiPulseStatus = document.getElementById('kpi-pulse-status');
+
+      const oscModeBadge = document.getElementById('osc-mode-badge');
+      const oscLiveV = document.getElementById('osc-live-v');
+      const oscLastPeak = document.getElementById('osc-last-peak');
+      const oscTimingInfo = document.getElementById('osc-timing-info');
+      const oscCapLabel = document.getElementById('osc-cap-label');
+
+      const schematicAngleLabel = document.getElementById('schematic-angle-label');
+      const dropletTelemetry = document.getElementById('droplet-telemetry');
+      const btnContinuous = document.getElementById('btn-continuous-drop');
+      const continuousLabel = document.getElementById('continuous-status-label');
+
+      const curveCanvas = document.getElementById('curveCanvas');
+      const curveCtx = curveCanvas.getContext('2d');
+      const oscCanvas = document.getElementById('oscCanvas');
+      const oscCtx = oscCanvas.getContext('2d');
+      const schematicCanvas = document.getElementById('schematicCanvas');
+      const schematicCtx = schematicCanvas.getContext('2d');
+
+      let plotBox = { x: 54, y: 24, w: 500, h: 270, maxV: 140 };
+
+      /**
+       * Smooth continuous contact/residence trade-off factor g_c(theta; m, alpha).
+       */
+      function computeContactTradeoff(deg) {
+        const rad = (deg * Math.PI) / 180;
+        const cosT = Math.max(Math.cos(rad), 0.001);
+        const normOffset = (deg - PEAK_CENTER_DEG) / PEAK_WIDTH_DEG;
+        const dwellBalance = Math.exp(-state.alpha * normOffset * normOffset);
+        return Math.pow(cosT, state.m) * dwellBalance;
+      }
+
+      function evaluatePoint(deg, withTradeoff = true) {
+        const rad = (deg * Math.PI) / 180;
+        const sinT = Math.max(Math.sin(rad), 1e-4);
+        const cosT = Math.max(Math.cos(rad), 0.001);
+
+        const filmFactor = Math.exp(-state.k / sinT);
+        const contactFactor = withTradeoff ? computeContactTradeoff(deg) : 1.0;
+
+        const uncappedV = state.v0 * filmFactor * contactFactor;
+        const capV = V_PASCHEN * state.eta;
+        const vPeak = Math.min(uncappedV, capV);
+
+        return {
+          deg,
+          sinT,
+          cosT,
+          filmFactor,
+          contactFactor,
+          uncappedV,
+          capV,
+          vPeak,
+          isCapped: uncappedV >= capV - 1e-6
+        };
+      }
+
+      /**
+       * High-resolution (0.1 deg) sweep to find smooth peak angle theta_opt.
+       */
+      function computeOptimalAngle() {
+        let bestDeg = 10.0;
+        let bestRes = evaluatePoint(10.0, true);
+        const eps = 1e-7;
+
+        for (let d = 10.0; d <= 88.0001; d += 0.1) {
+          const clampedD = Math.min(88.0, Number(d.toFixed(1)));
+          const r = evaluatePoint(clampedD, true);
+          if (r.vPeak > bestRes.vPeak + eps) {
+            bestRes = r;
+            bestDeg = clampedD;
+          }
+        }
+        return { bestDeg, bestRes };
+      }
+
+      window.setPreset = function (key) {
+        const p = PRESETS[key];
+        if (!p) return;
+
+        state.material = p.label;
+        state.theta = p.theta;
+        state.v0 = p.v0;
+        state.k = p.k;
+        state.m = p.m;
+        state.alpha = p.alpha;
+        state.eta = p.eta;
+
+        slTheta.value = state.theta;
+        slK.value = state.k;
+        slM.value = state.m;
+        slAlpha.value = state.alpha;
+        slV0.value = state.v0;
+        slEta.value = state.eta;
+
+        ['PTFE', 'PI', 'PVC'].forEach(id => {
+          document.getElementById('btn-' + id).classList.toggle('active', id === key);
+        });
+
+        updateAll();
+      };
+
+      function spawnDroplet() {
+        simDroplets.list.push({
+          id: simDroplets.nextId++,
+          progress: 0,
+          triggeredPulse: false
+        });
+      }
+
+      function enqueueOscilloscopePulse(cur) {
+        const nowMs = performance.now();
+        if (oscState.lastPulseTimeMs !== null) {
+          oscState.lastIntervalMs = Math.round(nowMs - oscState.lastPulseTimeMs);
+        }
+        oscState.lastPulseTimeMs = nowMs;
+
+        // Higher tilt angle slightly shortens contact/residence pulse duration
+        const widthFrames = Math.max(12, Math.round(28 - 11 * cur.sinT));
+        oscState.activePulses.push({
+          age: 0,
+          duration: widthFrames,
+          peakV: cur.vPeak,
+          filmRetention: cur.filmFactor,
+          contactFactor: cur.contactFactor
+        });
+
+        oscLastPeak.textContent = `${cur.vPeak.toFixed(1)} V`;
+        const approxPulseMs = Math.round(widthFrames * 16.7);
+        if (oscState.lastIntervalMs !== null && oscState.lastIntervalMs < 15000) {
+          oscTimingInfo.textContent = `폭 ≈${approxPulseMs}ms / 간격 ${oscState.lastIntervalMs}ms`;
+        } else {
+          oscTimingInfo.textContent = `폭 ≈${approxPulseMs}ms`;
+        }
+      }
+
+      window.clearOscilloscope = function () {
+        oscState.samples.fill(0);
+        oscState.activePulses = [];
+        oscState.instantV = 0;
+        oscState.lastPulseTimeMs = null;
+        oscState.lastIntervalMs = null;
+        oscLiveV.textContent = '0.0 V';
+        oscLastPeak.textContent = '0.0 V';
+        oscTimingInfo.textContent = '-- ms';
+      };
+
+      window.launchSingleDroplet = function () {
+        spawnDroplet();
+        kpiPulseStatus.textContent = simDroplets.continuous
+          ? `연속 낙하 중 (총 ${simDroplets.pulseCount}회)`
+          : '단일 물방울 낙하 중...';
+        dropletTelemetry.textContent =
+          `경사각 ${state.theta.toFixed(1)}°에서 물방울이 낙하·슬라이딩 중입니다 (예측 V_peak = ${evaluatePoint(state.theta, true).vPeak.toFixed(1)} V).`;
+      };
+
+      window.toggleContinuousDroplets = function () {
+        simDroplets.continuous = !simDroplets.continuous;
+        btnContinuous.classList.toggle('active-stream', simDroplets.continuous);
+        continuousLabel.textContent = simDroplets.continuous ? 'ON' : 'OFF';
+        oscModeBadge.textContent = simDroplets.continuous ? 'CH1 · CONT STREAM' : 'CH1 · SINGLE/CONT';
+
+        if (simDroplets.continuous) {
+          simDroplets.spawnCooldown = 0;
+          spawnDroplet();
+          kpiPulseStatus.textContent = '연속 물방울 낙하 활성';
+          dropletTelemetry.textContent =
+            `연속 낙하 모드 ON — 경사각 ${state.theta.toFixed(1)}°에서 연속 방울 펄스와 잔여 수막/접촉 거동을 표시합니다.`;
+        } else {
+          kpiPulseStatus.textContent = simDroplets.lastPeak > 0
+            ? `마지막 피크: ${simDroplets.lastPeak.toFixed(1)} V`
+            : '단일/연속 낙하 대기 중';
+          dropletTelemetry.textContent = '연속 낙하 모드가 정지되었습니다. 버튼을 눌러 물방울을 다시 낙하시키세요.';
+        }
+      };
+
+      function syncFromSliders() {
+        state.theta = parseFloat(slTheta.value);
+        state.k = parseFloat(slK.value);
+        state.m = parseFloat(slM.value);
+        state.alpha = parseFloat(slAlpha.value);
+        state.v0 = parseFloat(slV0.value);
+        state.eta = parseFloat(slEta.value);
+        updateAll();
+      }
+
+      [slTheta, slK, slM, slAlpha, slV0, slEta].forEach(input => {
+        input.addEventListener('input', syncFromSliders);
+      });
+
+      function updateAll() {
+        outTheta.textContent = `${state.theta.toFixed(1)}°`;
+        outK.textContent = state.k.toFixed(2);
+        outM.textContent = state.m.toFixed(2);
+        outAlpha.textContent = state.alpha.toFixed(2);
+        outV0.textContent = `${state.v0.toFixed(0)} V`;
+        outEta.textContent = state.eta.toFixed(2);
+        presetTag.textContent = `시료: ${state.material}`;
+        schematicAngleLabel.textContent = `${state.theta.toFixed(1)}°`;
+
+        const cur = evaluatePoint(state.theta, true);
+        const { bestDeg, bestRes } = computeOptimalAngle();
+
+        kpiOptAngle.textContent = `${bestDeg.toFixed(1)}°`;
+        kpiOptVolt.textContent = `최대 예측 피크: ${bestRes.vPeak.toFixed(1)} V`;
+        kpiCurVolt.textContent = `${cur.vPeak.toFixed(1)} V`;
+        kpiPaschenCap.textContent = `파셴 관측 상한: ${cur.capV.toFixed(1)} V`;
+        kpiRatios.textContent = `${cur.filmFactor.toFixed(2)} / ${cur.contactFactor.toFixed(2)}`;
+        oscCapLabel.textContent = `${cur.capV.toFixed(1)} V`;
+
+        if (cur.isCapped) {
+          regimeBadge.className = 'badge badge-warn';
+          regimeBadge.textContent = '파셴 상한 포화';
+        } else if (Math.abs(state.theta - bestDeg) <= 4.0) {
+          regimeBadge.className = 'badge badge-peak';
+          regimeBadge.textContent = `최적각(${bestDeg.toFixed(0)}°) 피크 구간`;
+        } else if (state.theta < bestDeg - 4.0) {
+          regimeBadge.className = 'badge badge-warn';
+          regimeBadge.textContent = '저각도 · 수막 영향 구간';
+        } else {
+          regimeBadge.className = 'badge badge-opt';
+          regimeBadge.textContent = '고각도 · 접촉 감소 구간';
+        }
+
+        const normOffset = (state.theta - PEAK_CENTER_DEG) / PEAK_WIDTH_DEG;
+        const dwellFactor = Math.exp(-state.alpha * normOffset * normOffset);
+
+        liveSub.innerHTML =
+          `θ=${state.theta.toFixed(1)}°, k=${state.k.toFixed(2)}, m=${state.m.toFixed(2)}, α=${state.alpha.toFixed(2)}<br>` +
+          `V_peak = min[ ${state.v0} × exp(-${state.k.toFixed(2)}/${cur.sinT.toFixed(3)}) × (${cur.cosT.toFixed(3)}^${state.m.toFixed(2)}·${dwellFactor.toFixed(3)}),  327 × ${state.eta.toFixed(2)} ]<br>` +
+          `= min[ ${cur.uncappedV.toFixed(1)} V,  ${cur.capV.toFixed(1)} V ] = <strong style="color:#34d399;">${cur.vPeak.toFixed(1)} V</strong>`;
+
+        drawCurveChart(cur, bestDeg, bestRes);
+      }
+
+      function resizeHiDpi(canvas, ctx) {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = Math.max(120, Math.floor(rect.width));
+        const h = Math.max(90, Math.floor(rect.height));
+        const targetW = Math.floor(w * dpr);
+        const targetH = Math.floor(h * dpr);
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+          canvas.width = targetW;
+          canvas.height = targetH;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { w, h };
+      }
+
+      function traceSmoothPath(ctx, points) {
+        if (points.length === 0) return;
+        ctx.moveTo(points[0].x, points[0].y);
+        if (points.length === 1) return;
+
+        for (let i = 1; i < points.length - 1; i++) {
+          const midX = (points[i].x + points[i + 1].x) * 0.5;
+          const midY = (points[i].y + points[i + 1].y) * 0.5;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY);
+        }
+        const last = points[points.length - 1];
+        ctx.lineTo(last.x, last.y);
+      }
+
+      function drawCurveChart(cur, bestDeg, bestRes) {
+        const { w, h } = resizeHiDpi(curveCanvas, curveCtx);
+        curveCtx.clearRect(0, 0, w, h);
+
+        const pad = { left: 54, right: 20, top: 26, bottom: 40 };
+        const pw = Math.max(60, w - pad.left - pad.right);
+        const ph = Math.max(60, h - pad.top - pad.bottom);
+
+        const ptsTrade = [];
+        const ptsBase = [];
+        let peakCandidate = 40;
+
+        for (let d = 10.0; d <= 88.001; d += 0.5) {
+          const deg = Math.min(88.0, Number(d.toFixed(1)));
+          const r1 = evaluatePoint(deg, true);
+          const r2 = evaluatePoint(deg, false);
+          ptsTrade.push(r1);
+          ptsBase.push(r2);
+          if (r1.vPeak > peakCandidate) peakCandidate = r1.vPeak;
+          if (r2.vPeak > peakCandidate) peakCandidate = r2.vPeak;
+        }
+
+        const maxV = Math.max(peakCandidate * 1.2, cur.capV * 1.12, 60);
+        plotBox = { x: pad.left, y: pad.top, w: pw, h: ph, maxV };
+
+        const toX = d => pad.left + ((d - 10) / 78) * pw;
+        const toY = v => pad.top + ph - (Math.max(0, v) / maxV) * ph;
+
+        // Grid & ticks
+        curveCtx.font = '600 10px ui-monospace, monospace';
+        for (let i = 0; i <= 5; i++) {
+          const val = (maxV / 5) * i;
+          const y = toY(val);
+          curveCtx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+          curveCtx.lineWidth = 1;
+          curveCtx.beginPath();
+          curveCtx.moveTo(pad.left, y);
+          curveCtx.lineTo(pad.left + pw, y);
+          curveCtx.stroke();
+
+          curveCtx.fillStyle = '#94a3b8';
+          curveCtx.textAlign = 'right';
+          curveCtx.textBaseline = 'middle';
+          curveCtx.fillText(`${Math.round(val)}V`, pad.left - 7, y);
+        }
+
+        for (let d = 10; d <= 88; d += 13) {
+          const x = toX(d);
+          curveCtx.strokeStyle = 'rgba(71, 85, 105, 0.35)';
+          curveCtx.lineWidth = 1;
+          curveCtx.beginPath();
+          curveCtx.moveTo(x, pad.top);
+          curveCtx.lineTo(x, pad.top + ph);
+          curveCtx.stroke();
+
+          curveCtx.fillStyle = '#94a3b8';
+          curveCtx.textAlign = 'center';
+          curveCtx.textBaseline = 'top';
+          curveCtx.fillText(`${Math.round(d)}°`, x, pad.top + ph + 7);
+        }
+
+        curveCtx.fillStyle = '#cbd5e1';
+        curveCtx.font = '600 11px sans-serif';
+        curveCtx.textAlign = 'center';
+        curveCtx.fillText('경사각 θ_tilt (°)', pad.left + pw / 2, h - 11);
+
+        // Paschen reference line
+        const capY = toY(cur.capV);
+        curveCtx.save();
+        curveCtx.setLineDash([4, 4]);
+        curveCtx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+        curveCtx.lineWidth = 1.5;
+        curveCtx.beginPath();
+        curveCtx.moveTo(pad.left, capY);
+        curveCtx.lineTo(pad.left + pw, capY);
+        curveCtx.stroke();
+        curveCtx.fillStyle = '#fde68a';
+        curveCtx.font = '600 10px sans-serif';
+        curveCtx.textAlign = 'left';
+        curveCtx.textBaseline = 'bottom';
+        curveCtx.fillText(`파셴 한계 ${cur.capV.toFixed(1)} V`, pad.left + 6, capY - 3);
+        curveCtx.restore();
+
+        const coordsTrade = ptsTrade.map(pt => ({ x: toX(pt.deg), y: toY(pt.vPeak) }));
+        const coordsBase = ptsBase.map(pt => ({ x: toX(pt.deg), y: toY(pt.vPeak) }));
+
+        // Dashed comparison curve (without trade-off)
+        curveCtx.save();
+        curveCtx.setLineDash([5, 5]);
+        curveCtx.strokeStyle = '#94a3b8';
+        curveCtx.lineWidth = 1.8;
+        curveCtx.beginPath();
+        traceSmoothPath(curveCtx, coordsBase);
+        curveCtx.stroke();
+        curveCtx.restore();
+
+        // Smooth gradient fill under main trade-off curve
+        const grad = curveCtx.createLinearGradient(0, pad.top, 0, pad.top + ph);
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.30)');
+        grad.addColorStop(1, 'rgba(56, 189, 248, 0.01)');
+
+        curveCtx.beginPath();
+        curveCtx.moveTo(toX(10), toY(0));
+        traceSmoothPath(curveCtx, coordsTrade);
+        curveCtx.lineTo(toX(88), toY(0));
+        curveCtx.closePath();
+        curveCtx.fillStyle = grad;
+        curveCtx.fill();
+
+        // Main smooth trade-off curve
+        curveCtx.strokeStyle = '#38bdf8';
+        curveCtx.lineWidth = 3;
+        curveCtx.beginPath();
+        traceSmoothPath(curveCtx, coordsTrade);
+        curveCtx.stroke();
+
+        // Optimal angle marker & callout
+        const optX = toX(bestDeg);
+        const optY = toY(bestRes.vPeak);
+
+        curveCtx.save();
+        curveCtx.setLineDash([3, 3]);
+        curveCtx.strokeStyle = 'rgba(251, 113, 133, 0.85)';
+        curveCtx.lineWidth = 1.4;
+        curveCtx.beginPath();
+        curveCtx.moveTo(optX, optY);
+        curveCtx.lineTo(optX, pad.top + ph);
+        curveCtx.stroke();
+        curveCtx.restore();
+
+        curveCtx.fillStyle = '#fb7185';
+        curveCtx.strokeStyle = '#090e1a';
+        curveCtx.lineWidth = 2;
+        curveCtx.beginPath();
+        curveCtx.arc(optX, optY, 6, 0, Math.PI * 2);
+        curveCtx.fill();
+        curveCtx.stroke();
+
+        const tagText = `θ_opt ${bestDeg.toFixed(1)}° (${bestRes.vPeak.toFixed(1)}V)`;
+        curveCtx.font = '700 10px ui-monospace, monospace';
+        const boxW = curveCtx.measureText(tagText).width + 12;
+        const boxH = 20;
+        let bx = optX - boxW / 2;
+        bx = Math.max(pad.left + 2, Math.min(pad.left + pw - boxW - 2, bx));
+        let by = optY - boxH - 11;
+        if (by < pad.top + 2) by = optY + 11;
+
+        curveCtx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+        curveCtx.strokeStyle = '#fb7185';
+        curveCtx.lineWidth = 1.2;
+        curveCtx.fillRect(bx, by, boxW, boxH);
+        curveCtx.strokeRect(bx, by, boxW, boxH);
+
+        curveCtx.fillStyle = '#fecdd3';
+        curveCtx.textAlign = 'center';
+        curveCtx.textBaseline = 'middle';
+        curveCtx.fillText(tagText, bx + boxW / 2, by + boxH / 2);
+
+        // Current angle marker
+        const curX = toX(cur.deg);
+        const curY = toY(cur.vPeak);
+
+        curveCtx.strokeStyle = 'rgba(52, 211, 153, 0.65)';
+        curveCtx.lineWidth = 1.4;
+        curveCtx.beginPath();
+        curveCtx.moveTo(curX, curY);
+        curveCtx.lineTo(curX, pad.top + ph);
+        curveCtx.stroke();
+
+        curveCtx.fillStyle = '#34d399';
+        curveCtx.strokeStyle = '#090e1a';
+        curveCtx.lineWidth = 2;
+        curveCtx.beginPath();
+        curveCtx.arc(curX, curY, 6, 0, Math.PI * 2);
+        curveCtx.fill();
+        curveCtx.stroke();
+      }
+
+      /**
+       * Advance virtual oscilloscope waveform buffer with droplet pulses, film retention decay,
+       * and Paschen breakdown ceiling clipping.
+       */
+      function stepAndDrawOscilloscope(cur) {
+        const { w, h } = resizeHiDpi(oscCanvas, oscCtx);
+        oscCtx.clearRect(0, 0, w, h);
+
+        // Compute instant voltage from active pulses
+        let vNow = 0;
+        const streamFilmFactor = simDroplets.continuous
+          ? Math.max(0.25, 1.0 - (1.0 - cur.filmFactor) * 0.65)
+          : 1.0;
+
+        for (let i = oscState.activePulses.length - 1; i >= 0; i--) {
+          const p = oscState.activePulses[i];
+          p.age += 1;
+          const normT = p.age / p.duration;
+
+          if (normT >= 1.0) {
+            oscState.activePulses.splice(i, 1);
+            continue;
+          }
+
+          // Sharp rising edge + exponential decay tail reflecting water-film retention
+          const rise = 1.0 - Math.exp(-normT * 14.0);
+          const decayRate = 3.2 + (1.0 - p.filmRetention) * 5.0;
+          const decay = Math.exp(-Math.max(0, normT - 0.14) * decayRate);
+          const env = Math.min(1.0, rise * decay);
+
+          const pulseV = Math.min(p.peakV * env * streamFilmFactor, cur.capV);
+          if (pulseV > vNow) vNow = pulseV;
+        }
+
+        // Subtle baseline noise floor
+        const noiseV = (Math.sin(oscState.cursor * 0.45) * 0.35 + Math.cos(oscState.cursor * 1.13) * 0.25);
+        const totalV = Math.min(Math.max(0, vNow + noiseV), cur.capV);
+        oscState.instantV = totalV;
+        oscLiveV.textContent = `${totalV.toFixed(1)} V`;
+
+        oscState.samples[oscState.cursor] = totalV;
+        oscState.cursor = (oscState.cursor + 1) % OSC_SAMPLES;
+
+        const pad = { left: 48, right: 16, top: 20, bottom: 26 };
+        const pw = Math.max(60, w - pad.left - pad.right);
+        const ph = Math.max(50, h - pad.top - pad.bottom);
+
+        const vScaleMax = Math.max(120, Math.ceil((cur.capV * 1.2) / 20) * 20);
+        const toOscY = val => pad.top + ph - (Math.max(0, val) / vScaleMax) * ph;
+
+        // Oscilloscope graticule grid
+        const cols = 10;
+        const rows = 5;
+        oscCtx.strokeStyle = 'rgba(34, 197, 94, 0.14)';
+        oscCtx.lineWidth = 1;
+        for (let c = 0; c <= cols; c++) {
+          const gx = pad.left + (pw / cols) * c;
+          oscCtx.beginPath();
+          oscCtx.moveTo(gx, pad.top);
+          oscCtx.lineTo(gx, pad.top + ph);
+          oscCtx.stroke();
+        }
+        for (let r = 0; r <= rows; r++) {
+          const gy = pad.top + (ph / rows) * r;
+          oscCtx.beginPath();
+          oscCtx.moveTo(pad.left, gy);
+          oscCtx.lineTo(pad.left + pw, gy);
+          oscCtx.stroke();
+        }
+
+        // Y-axis voltage labels
+        oscCtx.font = '600 10px ui-monospace, monospace';
+        oscCtx.textAlign = 'right';
+        oscCtx.textBaseline = 'middle';
+        oscCtx.fillStyle = '#64748b';
+        for (let r = 0; r <= rows; r++) {
+          const vTick = (vScaleMax / rows) * r;
+          const yTick = toOscY(vTick);
+          oscCtx.fillText(`${Math.round(vTick)}V`, pad.left - 6, yTick);
+        }
+
+        // Paschen breakdown ceiling line on scope
+        const capY = toOscY(cur.capV);
+        oscCtx.save();
+        oscCtx.setLineDash([4, 4]);
+        oscCtx.strokeStyle = 'rgba(251, 191, 36, 0.8)';
+        oscCtx.lineWidth = 1.3;
+        oscCtx.beginPath();
+        oscCtx.moveTo(pad.left, capY);
+        oscCtx.lineTo(pad.left + pw, capY);
+        oscCtx.stroke();
+        oscCtx.fillStyle = '#fde68a';
+        oscCtx.textAlign = 'right';
+        oscCtx.textBaseline = 'bottom';
+        oscCtx.fillText(`파셴 상한 ${cur.capV.toFixed(1)}V`, pad.left + pw - 4, capY - 2);
+        oscCtx.restore();
+
+        // Plot rolling trace from oldest to newest
+        oscCtx.save();
+        oscCtx.strokeStyle = '#34d399';
+        oscCtx.lineWidth = 2.2;
+        oscCtx.shadowColor = 'rgba(52, 211, 153, 0.45)';
+        oscCtx.shadowBlur = 6;
+        oscCtx.beginPath();
+
+        for (let i = 0; i < OSC_SAMPLES; i++) {
+          const idx = (oscState.cursor + i) % OSC_SAMPLES;
+          const x = pad.left + (i / (OSC_SAMPLES - 1)) * pw;
+          const y = toOscY(oscState.samples[idx]);
+          if (i === 0) oscCtx.moveTo(x, y);
+          else oscCtx.lineTo(x, y);
+        }
+        oscCtx.stroke();
+        oscCtx.restore();
+
+        // Sweep beam marker at rightmost edge
+        const beamX = pad.left + pw;
+        const beamY = toOscY(totalV);
+        oscCtx.fillStyle = '#a7f3d0';
+        oscCtx.beginPath();
+        oscCtx.arc(beamX, beamY, 3.8, 0, Math.PI * 2);
+        oscCtx.fill();
+
+        // Bottom scope telemetry bar
+        oscCtx.font = '600 10px ui-monospace, monospace';
+        oscCtx.fillStyle = '#94a3b8';
+        oscCtx.textAlign = 'left';
+        oscCtx.textBaseline = 'top';
+        oscCtx.fillText(`TIMEBASE: 20 ms/div · θ=${state.theta.toFixed(1)}° · k=${state.k.toFixed(2)}`, pad.left, pad.top + ph + 7);
+        oscCtx.textAlign = 'right';
+        oscCtx.fillStyle = '#34d399';
+        oscCtx.fillText(`V_peak=${cur.vPeak.toFixed(1)}V`, pad.left + pw, pad.top + ph + 7);
+      }
+
+      // Interactive pointer scrubbing on chart
+      let scrubbing = false;
+      function scrubFromX(clientX) {
+        const rect = curveCanvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, (x - plotBox.x) / plotBox.w));
+        const snapped = Math.round((10 + ratio * 78) * 2) / 2;
+        state.theta = snapped;
+        slTheta.value = snapped;
+        updateAll();
+      }
+
+      curveCanvas.addEventListener('mousedown', e => {
+        scrubbing = true;
+        scrubFromX(e.clientX);
+      });
+      window.addEventListener('mousemove', e => {
+        if (scrubbing) scrubFromX(e.clientX);
+      });
+      window.addEventListener('mouseup', () => {
+        scrubbing = false;
+      });
+      curveCanvas.addEventListener('touchstart', e => {
+        if (e.touches.length) {
+          scrubbing = true;
+          scrubFromX(e.touches[0].clientX);
+        }
+      }, { passive: true });
+      curveCanvas.addEventListener('touchmove', e => {
+        if (scrubbing && e.touches.length) {
+          scrubFromX(e.touches[0].clientX);
+        }
+      }, { passive: true });
+      window.addEventListener('touchend', () => {
+        scrubbing = false;
+      });
+
+      schematicCanvas.addEventListener('click', () => launchSingleDroplet());
+
+      function animateFrame() {
+        const { w, h } = resizeHiDpi(schematicCanvas, schematicCtx);
+        schematicCtx.clearRect(0, 0, w, h);
+
+        const cur = evaluatePoint(state.theta, true);
+        const rad = (state.theta * Math.PI) / 180;
+
+        // Continuous droplet stream spawner
+        if (simDroplets.continuous) {
+          simDroplets.spawnCooldown -= 1;
+          if (simDroplets.spawnCooldown <= 0) {
+            spawnDroplet();
+            simDroplets.spawnCooldown = Math.max(16, Math.round(34 - 14 * cur.sinT));
+          }
+        }
+
+        // Advance active droplets along the inclined PTFE track
+        const slideStep = 0.013 + 0.024 * cur.sinT;
+        for (let i = simDroplets.list.length - 1; i >= 0; i--) {
+          const drop = simDroplets.list[i];
+          drop.progress += slideStep;
+
+          if (!drop.triggeredPulse && drop.progress >= 0.55) {
+            drop.triggeredPulse = true;
+            simDroplets.flash = 1.0;
+            simDroplets.lastPeak = cur.vPeak;
+            simDroplets.pulseCount += 1;
+            enqueueOscilloscopePulse(cur);
+
+            kpiPulseStatus.textContent = simDroplets.continuous
+              ? `연속 펄스 #${simDroplets.pulseCount}: ${cur.vPeak.toFixed(1)} V`
+              : `피크 전압: ${cur.vPeak.toFixed(1)} V`;
+            dropletTelemetry.textContent =
+              `[${simDroplets.continuous ? '연속 낙하' : '단일 낙하'} #${simDroplets.pulseCount}] θ=${state.theta.toFixed(1)}° → V_peak=${cur.vPeak.toFixed(1)} V (수막유지 ${(cur.filmFactor * 100).toFixed(1)}%, 접촉계수 ${(cur.contactFactor * 100).toFixed(1)}%)`;
+          }
+
+          if (drop.progress >= 1.12) {
+            simDroplets.list.splice(i, 1);
+          }
+        }
+
+        simDroplets.flash = Math.max(0, simDroplets.flash - 0.035);
+
+        // Background grid
+        schematicCtx.strokeStyle = 'rgba(51, 65, 85, 0.35)';
+        schematicCtx.lineWidth = 1;
+        for (let gx = 0; gx < w; gx += 26) {
+          schematicCtx.beginPath();
+          schematicCtx.moveTo(gx, 0);
+          schematicCtx.lineTo(gx, h);
+          schematicCtx.stroke();
+        }
+
+        const cx = w * 0.5;
+        const cy = h * 0.58;
+        const plateLen = Math.min(w * 0.72, 260);
+        const halfL = plateLen / 2;
+
+        schematicCtx.save();
+        schematicCtx.translate(cx, cy);
+        schematicCtx.rotate(rad);
+
+        // Bottom electrode
+        schematicCtx.fillStyle = '#e11d48';
+        schematicCtx.fillRect(-halfL, 6, plateLen, 6);
+
+        // Dielectric layer
+        schematicCtx.fillStyle =
+          state.material === 'PI' ? '#d97706' : (state.material === 'PVC' ? '#64748b' : '#0284c7');
+        schematicCtx.fillRect(-halfL, -6, plateLen, 12);
+
+        // Surface negative charges
+        schematicCtx.fillStyle = '#e0f2fe';
+        schematicCtx.font = '700 10px ui-monospace, monospace';
+        schematicCtx.textAlign = 'center';
+        for (let i = 0; i < 8; i++) {
+          const lx = -halfL + 18 + (i * (plateLen - 36)) / 7;
+          schematicCtx.fillText('-', lx, 3);
+        }
+
+        // Residual water film thickness
+        const streamBoost = simDroplets.continuous ? 1.35 : 1.0;
+        const filmThick = Math.max(0, (1 - cur.filmFactor) * 11 * streamBoost);
+        if (filmThick > 0.35) {
+          schematicCtx.fillStyle = 'rgba(34, 211, 238, 0.45)';
+          schematicCtx.fillRect(-halfL + 10, -6 - Math.min(8, filmThick), plateLen - 20, Math.min(8, filmThick));
+        }
+
+        // Top electrode & pulse flash
+        const topElecX = halfL * 0.25;
+        schematicCtx.fillStyle = '#fbbf24';
+        schematicCtx.fillRect(topElecX, -10, 22, 4);
+
+        if (simDroplets.flash > 0.02) {
+          schematicCtx.fillStyle = `rgba(52, 211, 153, ${simDroplets.flash * 0.85})`;
+          schematicCtx.beginPath();
+          schematicCtx.arc(topElecX + 11, -11, 12 * simDroplets.flash + 3, 0, Math.PI * 2);
+          schematicCtx.fill();
+        }
+
+        const footScaleX = Math.max(0.65, 0.65 + 0.85 * cur.contactFactor);
+        const footScaleY = 1 / Math.sqrt(footScaleX);
+        const r = 10;
+
+        // Draw active droplets (or static preview droplet when idle)
+        if (simDroplets.list.length > 0) {
+          simDroplets.list.forEach(drop => {
+            const p = Math.max(0, Math.min(1, drop.progress));
+            const dropX = -halfL + 24 + p * (plateLen - 48);
+
+            schematicCtx.save();
+            schematicCtx.translate(dropX, -6);
+            schematicCtx.scale(footScaleX, footScaleY);
+            schematicCtx.beginPath();
+            schematicCtx.arc(0, -r * 0.72, r, Math.PI, 0, false);
+            schematicCtx.quadraticCurveTo(r, 0, 0, 0);
+            schematicCtx.quadraticCurveTo(-r, 0, -r, -r * 0.72);
+            schematicCtx.fillStyle = 'rgba(56, 189, 248, 0.94)';
+            schematicCtx.fill();
+            schematicCtx.strokeStyle = '#e0f2fe';
+            schematicCtx.lineWidth = 1.2;
+            schematicCtx.stroke();
+            schematicCtx.restore();
+
+            const halfFoot = r * footScaleX;
+            schematicCtx.strokeStyle = '#fde047';
+            schematicCtx.lineWidth = 1.4;
+            schematicCtx.beginPath();
+            schematicCtx.moveTo(dropX - halfFoot, 16);
+            schematicCtx.lineTo(dropX + halfFoot, 16);
+            schematicCtx.stroke();
+          });
+        } else {
+          const idleX = -halfL + 24 + 0.35 * (plateLen - 48);
+          schematicCtx.save();
+          schematicCtx.translate(idleX, -6);
+          schematicCtx.scale(footScaleX, footScaleY);
+          schematicCtx.beginPath();
+          schematicCtx.arc(0, -r * 0.72, r, Math.PI, 0, false);
+          schematicCtx.quadraticCurveTo(r, 0, 0, 0);
+          schematicCtx.quadraticCurveTo(-r, 0, -r, -r * 0.72);
+          schematicCtx.fillStyle = 'rgba(56, 189, 248, 0.55)';
+          schematicCtx.fill();
+          schematicCtx.strokeStyle = '#e0f2fe';
+          schematicCtx.lineWidth = 1.2;
+          schematicCtx.stroke();
+          schematicCtx.restore();
+        }
+
+        schematicCtx.restore();
+
+        // Top-left & top-right HUD labels
+        schematicCtx.font = '600 11px sans-serif';
+        schematicCtx.textAlign = 'left';
+        schematicCtx.fillStyle = '#cbd5e1';
+        schematicCtx.fillText(`수막 유지: ${(cur.filmFactor * 100).toFixed(1)}%`, 12, 18);
+        schematicCtx.fillText(`접촉 계수: ${(cur.contactFactor * 100).toFixed(1)}%`, 12, 34);
+
+        schematicCtx.textAlign = 'right';
+        schematicCtx.fillStyle = '#38bdf8';
+        schematicCtx.font = '700 12px ui-monospace, monospace';
+        schematicCtx.fillText(`V_peak = ${cur.vPeak.toFixed(1)} V`, w - 12, 18);
+
+        stepAndDrawOscilloscope(cur);
+        requestAnimationFrame(animateFrame);
+      }
+
+      window.addEventListener('resize', () => updateAll());
+
+      updateAll();
+      launchSingleDroplet();
+      animateFrame();
+    })();
+  </script>
+</body>
+</html>
